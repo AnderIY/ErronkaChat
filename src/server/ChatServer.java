@@ -1,32 +1,35 @@
 package server;
 
-import java.io.*;
-import java.net.*;
-import java.util.*;
+import java.io.PrintWriter;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ChatServer {
     private static final int PORT = 12345;
-    private static Set<ClientHandler> clientHandlers = Collections.synchronizedSet(new HashSet<>());
+    private static final List<ClientHandler> clients = new ArrayList<>();
 
     public static void main(String[] args) {
-        System.out.println("Server is running on port " + PORT);
+        System.out.println("Chat server started...");
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             while (true) {
                 Socket clientSocket = serverSocket.accept();
-                System.out.println("New client connected: " + clientSocket.getInetAddress().getHostAddress());
                 ClientHandler clientHandler = new ClientHandler(clientSocket);
-                clientHandlers.add(clientHandler);
+                synchronized (clients) {
+                    clients.add(clientHandler);
+                }
                 new Thread(clientHandler).start();
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     public static void broadcastMessage(String message, ClientHandler sender) {
-        synchronized (clientHandlers) {
-            for (ClientHandler client : clientHandlers) {
-                if (client != sender) {
+        synchronized (clients) {
+            for (ClientHandler client : clients) {
+                if (client != sender) { 
                     client.sendMessage(message);
                 }
             }
@@ -34,6 +37,8 @@ public class ChatServer {
     }
 
     public static void removeClient(ClientHandler clientHandler) {
-        clientHandlers.remove(clientHandler);
+        synchronized (clients) {
+            clients.remove(clientHandler);
+        }
     }
 }
